@@ -1,0 +1,16 @@
+﻿Weather,Temperature,Humidity,Injure,Mood,RUN
+clear,<10,<70,slightly,happy,NO
+clear,>30,70~80,fit,lazy,YES
+clear,>30,70~80,severe,happy,NO
+clear,10~20,<70,severe,stressed,NO
+shower,>30,>80,fit,happy,YES
+shower,10~20,>80,slightly,stressed,YES
+shower,10~20,70~80,slightly,happy,NO
+shower,20~30,>80,fit,stressed,YES
+storm,10~20,>80,fit,happy,NO
+storm,20~30,>80,fit,stressed,NO
+storm,20~30,70~80,slightly,happy,NO
+,,,,,
+,,,,,
+,,,,,
+0.530702407,,,,,

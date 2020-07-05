@@ -1,0 +1,156 @@
+HELLO-MOTTO NAIVE-BAYES.
+Ram's book is good.
+Hello!!!
+fox, foxes
+pay, paid, paying
+waiter, waitress
+hear, hears
+I, me, my
+ate, eaten
+good, better, best
+Bad worse worst
+
+connection, connections, connective, connected. connecting.
+Run Ran Running Runner
+love loving lovingly loved lover lovely love.
+amusing, amusement, amused
+Twitter NLP Example: How to Scale Part-of-Speech Tagging with MPP (Part 1)
+OCTOBER 17, 2014 SRIVATSAN RAMANUJAM
+In the previous blog post, we gave an overview of text analytics and natural language processing (NLP) 
+in the era of Big Data. We saw how NLP holds one key to unlocking the business value buried in 
+unstructured text, a gold mine that many companies have yet to tap into.
+
+In part one, we will introduce part-of-speech tagging, explain its value, understand the challenges 
+with using it, and show how Pivotal’s MPP-oriented big data platform works with this type of workload, 
+using open source projects, SQL user defined functions, and procedural languages like PL/Java, PL/Python and PL/R.
+
+As well, we open-sourced the code, and it can run on PostgreSQL as well as Pivotal’s massively parallel 
+processing (MPP) engines. This includes Greenplum DB analytic data warehouses and Pivotal HD (part of the Pivotal 
+Big Data Suite) with HAWQ, the highest performing SQL query engine for Apache Hadoop®.
+
+Why POS Tagging? Understanding Feedback Inside Tweets
+At Pivotal Data Labs, we’ve worked with a variety of semi-structured data sources, like Tweets, to solve 
+data science problems for our customers. We have also built many demos to showcase the capabilities of 
+Pivotal’s Big Data Suite.
+
+What we find is that companies today are monitoring social media to improve sales, marketing, and customer 
+service, including the evaluation of brand perception. 
+Are people happy with our products? 
+What do they not like about our product? 
+How can we improve our service and offerings? 
+Was our recent product launch/marketing conference well received by our partners and customers? 
+How do customers view our competitors? 
+These are questions that sales, marketing, and service departments in many companies are interested in.
+Social media sentiment analysis is also of interest to algorithmic trading systems. 
+For example, some companies might be interested in building a predictive model that correlates the sentiment 
+in Tweets with a stock symbol or a commodity future of interest. 
+The system would have to compute a sentiment score for relevant tweets. One simple way of coming up with a 
+sentiment score for a tweet would be to use a sentiment dictionary—a collection of positive and negative words 
+(See Prof. Jason Baldridge for a comprehensive tutorial on Practical Sentiment Analysis). By looking up the words 
+in the tweet with those in the sentiment dictionary, one can define the ratio of positive words in a tweet to the 
+total number of positive and negative words as the sentiment score for the tweet.
+Challenges with POS Tagging
+There are several pitfalls in this approach, and one key problem is the absence of context. 
+Our simple dictionary look-up algorithm would do better if it incorporated context. 
+For example, a Kansas farmer tweeting about “strong winds in his fields” might signify negative sentiment for 
+his wheat crop. 
+At the same time, a trader tweeting about “strong yield prospects for wheat based on USDA crop production report 
+for August” would signify a positive sentiment. While the token ‘strong’ is an adjective in both instances, the 
+tokens ‘wind’ and ‘yield’ provide important, contextual information as the noun associated with the adjective. 
+Without the context provided by these nouns, our simple sentiment scoring algorithm would regard both tweets as 
+expressing positive sentiment.
+To incorporate such contextual information into our simple sentiment scoring algorithm, we first need to extract 
+phrases from the tweets. We can then count the number of tweets in which each phrase occurred as a very strong, 
+positive adjective like “excellent” and the number of occurrences with a very strong negative adjective like 
+“poor.” Using these two counts, we can come-up with a sentiment score for the extracted phrase, and ‘strong winds’ 
+is likely to have a negative score while ‘strong yield’ is likely to have a positive score.
+The extraction of such adjectives along with their context is the building block of a seminal paper on sentiment 
+analysis by Peter Turney. The task that helps us extract these contextual phrases is a well-studied problem in 
+natural language processing (NLP) called parts-of-speech (POS) tagging. POS tagging of raw text is a fundamental 
+building block of many NLP pipelines such as word-sense disambiguation, question answering and sentiment analysis. 
+In its simplest form, given a sentence, POS tagging is the task of identifying nouns, verbs, adjectives, adverbs, 
+and more. In practice, many NLP tasks use a much richer tagset for part-of-speech, the Penn Treebank corpus for 
+instance, has a tagset of 36 POS tags.
+Challenges in POS Tagging
+One of the key challenges in POS tagging is the tokenization of sentences. Tokenization is the process of breaking 
+a sentence into words. While one might think this is pretty straightforward for a language such as English, where 
+words are usually separated by whitespaces, this is not always true, especially with tweets. For instance, consider 
+the following sentence:
+I ‘m heading to San Francisco tomorrow to watch the San Francisco Giants game . Are n’t you ?
+A correct tokenization of this sentence is as follows:
+I’m heading to San Francisco tomorrow to watch the SF Giants game. Aren’t you?
+Notice how “San Francisco” is a single token although the words “San” and “Francisco” are whitespace separated. 
+Also notice how the token “SF” is combined with the token “Giants” to form a single token “SF Giants.” Notice also 
+how tokenizing the “aren’t” into “are” and “n’t” makes more intuitive sense than tokenizing it into “aren” and “‘t”. 
+This is further complicated in languages like Chinese, Japanese, and Korean where, in the standard form, there is 
+no space separation between words.
+Another key challenge for POS tagging is the ambiguity in natural language. Many words in English, for instance, 
+can be associated with multiple parts-of-speech, and it is important to understand the context for proper POS 
+tagging. For example, consider the following sentences:
+I like running
+He runs like the wind
+The part-of-speech annotation in the above sentences are as follows:
+__________________
+PRP I VBP like NN running 
+PRP He VBZ runs IN like DT the NN wind
+In the first sentence, the word like is tagged as VBP (verb non-third person, singular, present tense) while 
+the second sentence, it is tagged as IN (preposition). On the average, an English language word has at least 
+two POS tags associated with it. This ambiguity makes the task quite challenging.
+
+For a well-structured corpora, such as a New York Times article or a news item from the Wall Street Journal, 
+POS tagging is considered a solved problem. The accuracy of state of the art POS taggers is close to human level. 
+However, achieving human-level accuracy for POS tagging is much harder with conversational text such as Twitter 
+or SMS texts. This is because there is no strict adherence to grammar or syntax in conversational texts, and the 
+140 character limit of Twitter has made posters quite inventive—condensing more information into fewer characters.
+
+For example, consider the following example of what could be an actual tweet:
+I H8 my nw fone! It sux big tym, call got dropped nw agen. I’m heading 2 d store @ d Stanford Mall 2mrw 2 hav it 
+replaced #SMARTPHONEFAIL ><
+The tweet is more textese than English—a mixture of abbreviations, slangs, at mentions, hashtags, and emoticons. 
+Standard lexical, orthographic and syntactic rules don’t reflect in many tweets such as the one above. 
+
+So, models based on these assumptions would perform poorly. We need a specialized POS tagger for Twitter that 
+can account for such irregularities in Tweets and give a reasonably high tagging accuracy.
+
+Instead of engineering a POS tagger for Twitter on our own, we decided to tap into ArkTweetNLP, an open source 
+implementation by Professor Noah Smith’s group at the Carnegie Mellon University. ArkTweetNLP reports 93% tagging 
+accuracy for Twitter, using a simplified tagset more suited to conversational texts. We strongly recommend reading 
+their NAACL-2013 paper for details about their algorithm and their model.
+
+In addition to the high level of tagging accuracy on Twitter data, ArkTweetNLP also provides tokenized output of 
+tweets. The software is written in Java and exported as a jar file, making it particularly attractive—it can 
+easily be adapted to run on the Pivotal Big Data Suite(which includes the Pivotal Greenplum Database and Pivotal 
+HD with HAWQ) through PL/Java.
+Tagging at Scale with Pivotal’s Massively Parallel Processing (MPP) Platform
+The Pivotal MPP platform supports procedural languages such as PL/Python, PL/R, PL/C, PL/Perl and PL/Java. 
+For data parallel tasks, this enables us to quickly wrap any open source package implemented in Python, R, C, Perl, 
+or Java into user defined functions (UDFs) within SQL. By doing so, one can achieve scalability by simply 
+piggybacking on the MPP architecture of Pivotal Greenplum and HAWQ.
+
+POS tagging is a data parallel task where the POS tagging of one tweet is independent of another, allowing for 
+simultaneously tagging of multiple tweets. For instance, a corpus of hundreds of millions of tweets can be stored 
+as a distributed table in Pivotal Greenplum or Pivotal HD. Each segment shown below has its own non-overlapping 
+chunks of the larger table, and each such segment can perform POS tagging in parallel on the data resident in its 
+own disks.
+
+The procedural languages, such as R, Python, or Java, are loaded as dynamic libraries into the Greenplum/HAWQ 
+process running on the segment. Thus, there is very little overhead involved in invoking user defined functions 
+within SQL, most of which is in the conversion of SQL data types to and from the native language types. 
+In essence, this means that the MPP system can spawn off N instances of Python/R/Java in parallel, 
+all managed by GPDB. We only need to take care of distributing the data across all segments to achieve 
+maximum performance through parallelization.
+Here is how a UDF looks:
+
+This function accepts two integers as input and returns the maximum of the two as output. The code enclosed 
+within ‘$$ – $$’ is in the syntax of the procedural language, which could be Python, R, Perl, SQL or Java. 
+With little effort, this enables us to utilize the vast array of libraries available in these programming 
+languages and wrap them into procedural code that can be invoked through SQL.
+
+To summarize, we introduced the task of part-of-speech tagging, established why it is of interest to us and 
+gave a sense of challenges involved in making it work on conversation texts such as Twitter. 
+We also introduced Pivotal’s MPP platform and how User Defined Functions through procedural languages like PL/Java, 
+PL/Python and PL/R are well suited to tackle data parallel problems at scale, such as POS tagging. 
+
+In the next post we will dive deep into PL/Java UDFs and write our wrapper on ArkTweetNLP to perform POS tagging 
+at scale.
+
